@@ -158,10 +158,35 @@ export const TOOLS: ToolSchema[] = [
 // ---------------------------------------------------------------------------
 
 async function listDir(args: { path?: string }): Promise<string> {
-  const path = args.path ?? ".";
+  const path = await existingPath(args.path ?? ".");
   const entries = await readdir(path).catch(() => null);
   if (!entries) return `ERREUR: '${path}' n'est pas un dossier.`;
   return entries.sort().join("\n") || "(dossier vide)";
+}
+
+/** Corrige un chemin à racine dupliquée (erreur de copier-coller).
+ *  Ex: 'C:\LaSalle\C:\LaSalle\f.pdf' -> 'C:\LaSalle\f.pdf'. */
+function repairPath(path: string): string {
+  const norm = path.replace(/\//g, "\\");
+  const roots = norm.match(/[A-Za-z]:\\/g) ?? [];
+  if (roots.length >= 2) return norm.slice(norm.lastIndexOf(roots[roots.length - 1]!));
+  return path;
+}
+
+/** Renvoie un chemin existant (réparé si besoin), sinon le chemin d'origine. */
+async function existingPath(path: string): Promise<string> {
+  try {
+    await stat(path);
+    return path;
+  } catch {
+    const repaired = repairPath(path);
+    try {
+      await stat(repaired);
+      return repaired;
+    } catch {
+      return path;
+    }
+  }
 }
 
 async function readFileTool(args: {
@@ -169,16 +194,17 @@ async function readFileTool(args: {
   offset?: number;
   limit?: number;
 }): Promise<string> {
+  const path = await existingPath(args.path);
   try {
     // Un .docx (ou tout binaire) contient des octets NUL : on les détecte
     // pour ne pas saturer le contexte du modèle avec du charabia.
-    const stats = await stat(args.path);
+    const stats = await stat(path);
     if (stats.size > 5 * 1024 * 1024) {
       return `ERREUR: fichier trop volumineux (${stats.size} octets).`;
     }
-    const buffer = await readFile(args.path);
+    const buffer = await readFile(path);
     if (buffer.subarray(0, 8192).includes(0)) {
-      return `ERREUR: '${args.path}' est un fichier BINAIRE (non texte). ` +
+      return `ERREUR: '${path}' est un fichier BINAIRE (non texte). ` +
              `Pour un document, utilisez l'outil read_document.`;
     }
     const lines = buffer.toString("utf8").split("\n");
@@ -189,7 +215,7 @@ async function readFileTool(args: {
       .map((line, i) => `${from + i + 1}: ${line}`)
       .join("\n");
   } catch {
-    return `ERREUR: fichier introuvable: ${args.path}`;
+    return `ERREUR: fichier introuvable: ${path}`;
   }
 }
 
@@ -493,14 +519,15 @@ function extractPdfText(buffer: Buffer): string {
 const DOC_TEXT_LIMIT = 8000;
 
 async function readDocumentTool(args: { path: string }): Promise<string> {
+  const path = await existingPath(args.path);
   let buffer: Buffer;
   try {
-    buffer = await readFile(args.path);
+    buffer = await readFile(path);
   } catch {
-    return `ERREUR: fichier introuvable: ${args.path}`;
+    return `ERREUR: fichier introuvable: ${path}`;
   }
 
-  const ext = args.path.toLowerCase().split(".").pop() ?? "";
+  const ext = path.toLowerCase().split(".").pop() ?? "";
   let text = "";
   try {
     switch (ext) {
