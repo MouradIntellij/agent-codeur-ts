@@ -100,6 +100,41 @@ function looksLikeToolJson(content: string | null | undefined): boolean {
     (t.includes('"parameters"') || t.includes('"arguments"'));
 }
 
+// ---------------------------------------------------------------------------
+// Filet de sécurité « plan sans action » : le modèle annonce un calcul ou une
+// vérification mais s'arrête SANS exécuter d'outil. On le repère (marqueur de
+// promesse + vocabulaire d'outil) et on lui renvoie une injonction de
+// réellement exécuter, au plus une fois.
+// ---------------------------------------------------------------------------
+
+const PENDING_MARKERS = [
+  "je vais exécuter", "je vais executer", "je vais vérifier", "je vais verifier",
+  "je vais calculer", "je vais utiliser", "je vais lancer", "je vais commencer",
+  "je vais vous montrer", "je vais te montrer", "je vais montrer",
+  "si vous souhaitez, je peux", "si tu veux, je peux", "je peux vous montrer",
+  "je peux exécuter", "je peux executer", "je peux calculer", "je peux vérifier",
+  "je peux verifier",
+];
+
+const TOOL_WORDS = [
+  "sympy", "python", "bash", "command", "intégr", "integr", "dériv", "deriv",
+  "équation", "equation", "calcul", "outil",
+];
+
+const PENDING_NUDGE =
+  "Tu as annoncé un calcul ou une vérification sans exécuter aucun outil. " +
+  "C'est interdit : exécute MAINTENANT l'outil bash (Python + SymPy) ou " +
+  "l'outil adapté, puis donne le résultat réellement vérifié. Ne te " +
+  "contente pas de promettre ou de montrer du code.";
+
+const MAX_NUDGES = 1;
+
+function suggestsPendingAction(text: string | null | undefined): boolean {
+  const t = (text ?? "").toLowerCase();
+  return PENDING_MARKERS.some((m) => t.includes(m)) &&
+    TOOL_WORDS.some((w) => t.includes(w));
+}
+
 /**
  * Exécute une demande utilisateur complète.
  * @param userInput la demande en langage naturel
@@ -136,12 +171,18 @@ export async function runAgent(
     };
   }
 
+  let nudges = 0;
   for (let step = 0; step < config.maxIterations; step++) {
     const reply = await chat(messages, TOOLS);
     messages.push(reply); // on conserve le message de l'assistant (format filaire)
 
     const calls = parseToolCalls(reply);
     if (calls.length === 0) {
+      if (nudges < MAX_NUDGES && suggestsPendingAction(reply.content)) {
+        messages.push({ role: "user", content: PENDING_NUDGE });
+        nudges += 1;
+        continue;
+      }
       // Le modèle a répondu en texte : c'est la réponse finale.
       const content = reply.content?.trim();
       return {

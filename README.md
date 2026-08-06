@@ -14,7 +14,7 @@ on utilise `fetch` natif de Node 18+, `node:fs`, `node:child_process`,
 
 ```bash
 # 1. Prérequis : Ollama + un modèle (une seule fois)
-ollama pull qwen2.5:latest
+ollama pull llama3.2:latest
 ollama serve
 
 # 2. Installer les dépendances de DÉVELOPPEMENT (typescript + tsx)
@@ -168,7 +168,7 @@ agent-codeur-ts/
 ## Testé
 
 - `npm run typecheck` ✔ | `npm test` (16/16) ✔
-- Test réel sur Ollama (qwen2.5) : l'agent a créé `hello.js` puis l'a
+- Test réel sur Ollama (llama3.2) : l'agent a créé `hello.js` puis l'a
   exécuté avec `node` ✔
 - `read_document` validé sur un vrai `.docx` et un vrai `.pdf` de cours,
   `search_in_files` validé en session réelle ✔

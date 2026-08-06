@@ -79,6 +79,27 @@ export async function chat(
 }
 
 /**
+ * Détecte un appel d'outil écrit en JSON dans le texte.
+ * Certains petits modèles (llama3.2...) écrivent parfois l'appel d'outil en
+ * texte au lieu du champ structuré tool_calls, ex :
+ *     {"name": "bash", "parameters": {"command": "..."}}
+ */
+function parseTextToolCalls(content: string | null): ToolCall[] {
+  const text = (content ?? "").trim();
+  const match = text.match(
+    /\{"name"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*,\s*"parameters"\s*:\s*(\{.*\})\s*\}/,
+  );
+  if (!match) return [];
+  let args: Record<string, unknown> = {};
+  try {
+    args = JSON.parse(match[2]!) as Record<string, unknown>;
+  } catch {
+    args = {};
+  }
+  return [{ id: "textcall", name: match[1]!, arguments: args }];
+}
+
+/**
  * Transforme les `tool_calls` du message en liste normalisée.
  * Selon le serveur, `arguments` est une chaîne JSON ou déjà un objet :
  * on normalise vers un vrai objet.
@@ -106,5 +127,7 @@ export function parseToolCalls(message: ChatMessage): ToolCall[] {
       arguments: args,
     });
   }
+  // Filet de sécurité : appel d'outil écrit en JSON dans le texte.
+  if (result.length === 0) return parseTextToolCalls(message.content);
   return result;
 }

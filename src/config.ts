@@ -6,9 +6,10 @@
 
 export const config = {
   /** Modèle local utilisé (doit être capable de "tool calling").
-   *  qwen2.5:latest = meilleur compromis CPU/qualité (maths, résumés,
-   *  pédagogie, tool-calling fiable) ; llama3.2:latest = rapide mais fragile. */
-  model: process.env.AGENT_MODEL ?? "qwen2.5:latest",
+   *  llama3.2:latest = fiable pour le tool-calling calcul (SymPy : intégrales,
+   *  dérivées, équations) et 2x plus rapide ; qwen2.5:latest = plus éloquent
+   *  mais saute les appels d'outil de calcul. */
+  model: process.env.AGENT_MODEL ?? "llama3.2:latest",
 
   /** Adresse du serveur Ollama. */
   ollamaUrl: process.env.OLLAMA_URL ?? "http://localhost:11434",

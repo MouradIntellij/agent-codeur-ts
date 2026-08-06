@@ -135,7 +135,10 @@ export const TOOLS: ToolSchema[] = [
       description:
         "Exécute une commande dans le terminal (node, npm, git...). " +
         "Retourne la sortie, les erreurs et le code de sortie. " +
-        "À utiliser pour tester le code produit.",
+        "Pour un CALCUL Python, utilise EXACTEMENT ce modèle (guillemets " +
+        "DOUBLES à l'extérieur, apostrophes simples à l'intérieur, et " +
+        "définis toujours le symbole avec sympy.symbols) : " +
+        "python -c \"import sympy; x=sympy.symbols('x'); print(sympy.integrate(sympy.ln(x),x))\".",
       parameters: {
         type: "object",
         properties: {
