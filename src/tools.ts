@@ -96,6 +96,24 @@ export const TOOLS: ToolSchema[] = [
   {
     type: "function",
     function: {
+      name: "count_occurrences",
+      description:
+        "Compte EXACTEMENT combien de fois un mot ou une expression apparaît " +
+        "dans un fichier (décompte précis par le code, pas à la main). " +
+        "Compte les mots entiers, sans tenir compte des majuscules.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "Chemin du fichier à analyser" },
+          term: { type: "string", description: "Mot ou expression à compter" },
+        },
+        required: ["path", "term"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "write_file",
       description:
         "Crée un fichier ou ÉCRASE son contenu complet. " +
@@ -239,6 +257,30 @@ async function searchInFiles(args: { folder?: string; term: string }): Promise<s
     return `Aucune occurrence de '${args.term}' dans ${folder}.`;
   }
   return `${hits.length} occurrence(s) de '${args.term}' :\n` + hits.join("\n");
+}
+
+/** Compte les occurrences d'un mot (mots entiers, insensible à la casse). */
+async function countOccurrences(args: { path: string; term: string }): Promise<string> {
+  try {
+    const stats = await stat(args.path);
+    if (stats.size > 5 * 1024 * 1024) {
+      return `ERREUR: fichier trop volumineux (${stats.size} octets).`;
+    }
+    const buffer = await readFile(args.path);
+    const text = buffer.toString("utf8");
+    const needle = args.term.trim();
+    let count: number;
+    if (needle.includes(" ")) {
+      count = text.toLowerCase().split(needle.toLowerCase()).length - 1;
+    } else {
+      const re = new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+      count = (text.match(re) ?? []).length;
+    }
+    return `Le terme '${args.term}' apparaît ${count} fois dans ${args.path} ` +
+           `(${text.split(/\s+/).filter(Boolean).length} mots dans le fichier).`;
+  } catch {
+    return `ERREUR: fichier introuvable: ${args.path}`;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -502,6 +544,7 @@ const EXECUTORS: Record<string, Executor> = {
   read_file: readFileTool as Executor,
   read_document: readDocumentTool as Executor,
   search_in_files: searchInFiles as Executor,
+  count_occurrences: countOccurrences as Executor,
   write_file: writeFileTool as Executor,
   bash: bash as Executor,
 };

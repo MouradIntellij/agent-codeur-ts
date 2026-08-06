@@ -6,8 +6,9 @@
 
 export const config = {
   /** Modèle local utilisé (doit être capable de "tool calling").
-   *  llama3.2:latest = rapide sur CPU seul ; qwen2.5:latest = plus fiable. */
-  model: process.env.AGENT_MODEL ?? "llama3.2:latest",
+   *  qwen2.5:latest = meilleur compromis CPU/qualité (maths, résumés,
+   *  pédagogie, tool-calling fiable) ; llama3.2:latest = rapide mais fragile. */
+  model: process.env.AGENT_MODEL ?? "qwen2.5:latest",
 
   /** Adresse du serveur Ollama. */
   ollamaUrl: process.env.OLLAMA_URL ?? "http://localhost:11434",
